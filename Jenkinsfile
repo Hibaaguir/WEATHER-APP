@@ -12,15 +12,15 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                echo "🔄 Checkout du code depuis GitHub"
-                git branch: '${CHANGE_BRANCH}', url: 'https://github.com/ton-repo/weather-app.git'
+                echo "Checkout du code depuis GitHub"
+                git branch: '${CHANGE_BRANCH}', url: 'https://github.com/Hibaaguir/WEATHER-APP.git'
                 sh 'git log -1 --oneline'
             }
         }
         
         stage('Setup') {
             steps {
-                echo "⚙️ Configuration de l'environnement Python ${params.PYTHON_VERSION}"
+                echo "Configuration de l environnement Python ${params.PYTHON_VERSION}"
                 sh """
                     python --version
                     pip --version
@@ -30,7 +30,7 @@ pipeline {
         
         stage('Build') {
             steps {
-                echo "🏗️ Construction de l'application"
+                echo "Construction de l application"
                 sh """
                     pip install -r requirements.txt
                     python -m py_compile app/main.py
@@ -40,7 +40,7 @@ pipeline {
         
         stage('Run Docker') {
             steps {
-                echo "🐳 Lancement des conteneurs Docker"
+                echo "Lancement des conteneurs Docker"
                 sh """
                     docker-compose down || true
                     docker-compose up -d --build weather-app
@@ -51,7 +51,7 @@ pipeline {
         
         stage('Smoke Test') {
             steps {
-                echo "🧪 Exécution des tests smoke"
+                echo "Execution des tests smoke"
                 sh """
                     docker-compose run --rm smoke-test
                 """
@@ -60,7 +60,7 @@ pipeline {
         
         stage('Archive Artifacts') {
             steps {
-                echo "📦 Archivage des artefacts"
+                echo "Archivage des artefacts"
                 archiveArtifacts artifacts: '**/logs/*.log', allowEmptyArchive: true
                 junit '**/test-reports/*.xml'
             }
@@ -68,7 +68,7 @@ pipeline {
         
         stage('Cleanup') {
             steps {
-                echo "🧹 Nettoyage des ressources"
+                echo "Nettoyage des ressources"
                 sh """
                     docker-compose down || true
                     docker system prune -f || true
@@ -79,16 +79,16 @@ pipeline {
     
     post {
         always {
-            echo "📊 Pipeline terminé - Résumé"
+            echo "Pipeline termine - Resume"
             script {
                 currentBuild.description = "PR Build - Python ${params.PYTHON_VERSION}"
             }
         }
         success {
-            echo "✅ Pipeline réussi!"
+            echo "Pipeline reussi!"
         }
         failure {
-            echo "❌ Pipeline échoué!"
+            echo "Pipeline echoue!"
         }
     }
 }
