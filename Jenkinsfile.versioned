@@ -1,0 +1,110 @@
+pipeline {
+    agent any
+    
+    stages {
+        stage('Checkout Version') {
+            steps {
+                echo "🏷️ Checkout de la version ${TAG_NAME}"
+                checkout scm: [
+                    $class: 'GitSCM',
+                    branches: [[name: "${TAG_NAME}"]],
+                    userRemoteConfigs: [[url: 'https://github.com/ton-repo/weather-app.git']]
+                ]
+                sh "git describe --tags"
+            }
+        }
+        
+        stage('Setup') {
+            steps {
+                echo "⚙️ Configuration pour build versionné"
+                sh """
+                    python --version
+                    pip --version
+                """
+            }
+        }
+        
+        stage('Build') {
+            parallel {
+                stage('Build Python 3.9') {
+                    steps {
+                        echo "🐍 Build avec Python 3.9"
+                        sh """
+                            docker build -t weather-app:${TAG_NAME}-py39 .
+                        """
+                    }
+                }
+                stage('Build Python 3.10') {
+                    steps {
+                        echo "🐍 Build avec Python 3.10"
+                        sh """
+                            docker build -t weather-app:${TAG_NAME}-py310 .
+                        """
+                    }
+                }
+                stage('Build Python 3.11') {
+                    steps {
+                        echo "🐍 Build avec Python 3.11"
+                        sh """
+                            docker build -t weather-app:${TAG_NAME}-py311 .
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Run Docker') {
+            steps {
+                echo "🐳 Test de la version ${TAG_NAME}"
+                sh """
+                    docker run -d --name weather-${TAG_NAME} -p 5001:5000 weather-app:${TAG_NAME}-py39
+                    sleep 10
+                """
+            }
+        }
+        
+        stage('Smoke Test') {
+            steps {
+                echo "🧪 Validation version ${TAG_NAME}"
+                sh """
+                    curl -f http://localhost:5001/health || exit 1
+                    curl -f http://localhost:5001/api/weather/Paris || exit 1
+                """
+            }
+        }
+        
+        stage('Archive Artifacts') {
+            steps {
+                echo "📦 Archivage version ${TAG_NAME}"
+                archiveArtifacts artifacts: '**', allowEmptyArchive: true
+                sh """
+                    docker save weather-app:${TAG_NAME}-py39 > weather-app-${TAG_NAME}-py39.tar
+                    docker save weather-app:${TAG_NAME}-py310 > weather-app-${TAG_NAME}-py310.tar
+                    docker save weather-app:${TAG_NAME}-py311 > weather-app-${TAG_NAME}-py311.tar
+                """
+                archiveArtifacts artifacts: "weather-app-${TAG_NAME}-*.tar", allowEmptyArchive: false
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo "🧹 Nettoyage post-build"
+            sh """
+                docker stop weather-${TAG_NAME} || true
+                docker rm weather-${TAG_NAME} || true
+                docker rmi weather-app:${TAG_NAME}-py39 || true
+                docker rmi weather-app:${TAG_NAME}-py310 || true
+                docker rmi weather-app:${TAG_NAME}-py311 || true
+            """
+        }
+        success {
+            echo "✅ Version ${TAG_NAME} publiée avec succès!"
+            emailext (
+                subject: "🎉 Version ${TAG_NAME} publiée - Weather App",
+                body: "La version ${TAG_NAME} a été buildée et archivée avec succès.\n\nBuild: ${BUILD_URL}",
+                to: "releases@company.com"
+            )
+        }
+    }
+}

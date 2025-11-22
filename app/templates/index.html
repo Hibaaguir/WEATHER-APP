@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>🌤️ Application Météo</h1>
+        <div class="weather-grid">
+            {% for city, weather in cities.items() %}
+            <div class="weather-card">
+                <h2>{{ city }}</h2>
+                <div class="temp">{{ weather.temp }}°C</div>
+                <div class="condition">{{ weather.condition }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="api-info">
+            <p>API Endpoint: <code>/api/weather/&lt;city&gt;</code></p>
+            <p>Health Check: <code>/health</code></p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,102 @@
+pipeline {
+    agent any
+    
+    parameters {
+        choice(
+            name: 'PYTHON_VERSION',
+            choices: ['3.9', '3.10', '3.11'],
+            description: 'Python version to build with'
+        )
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                echo "🔄 Checkout de la branche dev"
+                git branch: 'dev', url: 'https://github.com/ton-repo/weather-app.git'
+                sh 'git log -1 --oneline'
+            }
+        }
+        
+        stage('Setup') {
+            steps {
+                echo "⚙️ Setup avec Python ${params.PYTHON_VERSION}"
+                sh """
+                    python --version
+                    pip install -r requirements.txt
+                """
+            }
+        }
+        
+        stage('Build') {
+            parallel {
+                stage('Build App') {
+                    steps {
+                        echo "🏗️ Construction de l'application"
+                        sh """
+                            python -m py_compile app/main.py tests/test_app.py
+                        """
+                    }
+                }
+                stage('Run Tests') {
+                    steps {
+                        echo "🧪 Exécution des tests unitaires"
+                        sh """
+                            python -m unittest discover tests/ -v
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Run Docker') {
+            steps {
+                echo "🐳 Déploiement Docker"
+                sh """
+                    docker-compose down || true
+                    docker-compose up -d --build
+                    sleep 15
+                """
+            }
+        }
+        
+        stage('Smoke Test') {
+            steps {
+                echo "🔍 Tests de validation"
+                sh """
+                    docker-compose run --rm smoke-test
+                """
+            }
+        }
+        
+        stage('Archive Artifacts') {
+            steps {
+                echo "📦 Archivage complet"
+                archiveArtifacts artifacts: '**/*.py,**/*.html,**/*.css', allowEmptyArchive: true
+                archiveArtifacts artifacts: 'requirements.txt,Dockerfile,docker-compose.yml', allowEmptyArchive: true
+                junit '**/test-reports/*.xml'
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo "🧹 Nettoyage"
+            sh 'docker-compose down || true'
+        }
+        success {
+            emailext (
+                subject: "✅ Build DEV réussi - Weather App",
+                body: "Le build sur dev a réussi. Voir: ${BUILD_URL}",
+                to: "dev-team@company.com"
+            )
+        }
+        failure {
+            emailext (
+                subject: "❌ Build DEV échoué - Weather App",
+                body: "Le build sur dev a échoué. Voir: ${BUILD_URL}",
+                to: "dev-team@company.com"
+            )
+        }
+    }
+}

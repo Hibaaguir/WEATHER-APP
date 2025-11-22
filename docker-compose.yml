@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  weather-app:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+    restart: unless-stopped
+
+  smoke-test:
+    build: .
+    command: ["python", "smoke_test.py"]
+    depends_on:
+      - weather-app
