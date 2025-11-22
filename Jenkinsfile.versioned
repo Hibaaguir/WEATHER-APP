@@ -10,14 +10,14 @@ pipeline {
                     branches: [[name: "${TAG_NAME}"]],
                     userRemoteConfigs: [[url: 'https://github.com/Hibaaguir/WEATHER-APP.git']]
                 ]
-                sh "git describe --tags"
+                bat "git describe --tags"
             }
         }
         
         stage('Setup') {
             steps {
                 echo "Configuration pour build versionne"
-                sh """
+                bat """
                     python --version
                     pip --version
                 """
@@ -29,7 +29,7 @@ pipeline {
                 stage('Build Python 3.9') {
                     steps {
                         echo "Build avec Python 3.9"
-                        sh """
+                        bat """
                             docker build -t weather-app:${TAG_NAME}-py39 .
                         """
                     }
@@ -37,7 +37,7 @@ pipeline {
                 stage('Build Python 3.10') {
                     steps {
                         echo "Build avec Python 3.10"
-                        sh """
+                        bat """
                             docker build -t weather-app:${TAG_NAME}-py310 .
                         """
                     }
@@ -48,9 +48,9 @@ pipeline {
         stage('Run Docker') {
             steps {
                 echo "Test de la version ${TAG_NAME}"
-                sh """
+                bat """
                     docker run -d --name weather-${TAG_NAME} -p 5001:5000 weather-app:${TAG_NAME}-py39
-                    sleep 10
+                    timeout /t 10 /nobreak
                 """
             }
         }
@@ -58,7 +58,7 @@ pipeline {
         stage('Smoke Test') {
             steps {
                 echo "Validation version ${TAG_NAME}"
-                sh """
+                bat """
                     curl -f http://localhost:5001/health || exit 1
                     curl -f http://localhost:5001/api/weather/Paris || exit 1
                 """
@@ -69,7 +69,7 @@ pipeline {
             steps {
                 echo "Archivage version ${TAG_NAME}"
                 archiveArtifacts artifacts: '**', allowEmptyArchive: true
-                sh """
+                bat """
                     docker save weather-app:${TAG_NAME}-py39 > weather-app-${TAG_NAME}-py39.tar
                     docker save weather-app:${TAG_NAME}-py310 > weather-app-${TAG_NAME}-py310.tar
                 """
@@ -81,11 +81,11 @@ pipeline {
     post {
         always {
             echo "Nettoyage post-build"
-            sh """
-                docker stop weather-${TAG_NAME} || true
-                docker rm weather-${TAG_NAME} || true
-                docker rmi weather-app:${TAG_NAME}-py39 || true
-                docker rmi weather-app:${TAG_NAME}-py310 || true
+            bat """
+                docker stop weather-${TAG_NAME}
+                docker rm weather-${TAG_NAME}
+                docker rmi weather-app:${TAG_NAME}-py39
+                docker rmi weather-app:${TAG_NAME}-py310
             """
         }
         success {

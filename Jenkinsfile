@@ -10,7 +10,7 @@ pipeline {
         string(
             name: 'BRANCH_NAME',
             defaultValue: 'dev',
-            description: 'Branch to build (use feature/branch-name for PR testing)'
+            description: 'Branch to build'
         )
     }
     
@@ -18,23 +18,15 @@ pipeline {
         stage('Checkout') {
             steps {
                 echo "Checkout du code depuis GitHub"
-                script {
-                    // Utiliser le paramètre BRANCH_NAME au lieu de CHANGE_BRANCH
-                    def branchToBuild = params.BRANCH_NAME
-                    if (env.CHANGE_BRANCH) {
-                        branchToBuild = env.CHANGE_BRANCH
-                    }
-                    echo "Building branch: ${branchToBuild}"
-                    git branch: branchToBuild, url: 'https://github.com/Hibaaguir/WEATHER-APP.git'
-                }
-                sh 'git log -1 --oneline'
+                git branch: params.BRANCH_NAME, url: 'https://github.com/Hibaaguir/WEATHER-APP.git'
+                bat 'git log -1 --oneline'
             }
         }
         
         stage('Setup') {
             steps {
                 echo "Configuration de l environnement Python ${params.PYTHON_VERSION}"
-                sh """
+                bat """
                     python --version
                     pip --version
                 """
@@ -44,7 +36,7 @@ pipeline {
         stage('Build') {
             steps {
                 echo "Construction de l application"
-                sh """
+                bat """
                     pip install -r requirements.txt
                     python -m py_compile app/main.py
                 """
@@ -54,10 +46,10 @@ pipeline {
         stage('Run Docker') {
             steps {
                 echo "Lancement des conteneurs Docker"
-                sh """
-                    docker-compose down || true
+                bat """
+                    docker-compose down
                     docker-compose up -d --build weather-app
-                    sleep 10
+                    timeout /t 10 /nobreak
                 """
             }
         }
@@ -65,7 +57,7 @@ pipeline {
         stage('Smoke Test') {
             steps {
                 echo "Execution des tests smoke"
-                sh """
+                bat """
                     docker-compose run --rm smoke-test
                 """
             }
@@ -82,9 +74,9 @@ pipeline {
         stage('Cleanup') {
             steps {
                 echo "Nettoyage des ressources"
-                sh """
-                    docker-compose down || true
-                    docker system prune -f || true
+                bat """
+                    docker-compose down
+                    docker system prune -f
                 """
             }
         }

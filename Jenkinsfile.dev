@@ -14,14 +14,14 @@ pipeline {
             steps {
                 echo "Checkout de la branche dev"
                 git branch: 'dev', url: 'https://github.com/Hibaaguir/WEATHER-APP.git'
-                sh 'git log -1 --oneline'
+                bat 'git log -1 --oneline'
             }
         }
         
         stage('Setup') {
             steps {
                 echo "Setup avec Python ${params.PYTHON_VERSION}"
-                sh """
+                bat """
                     python --version
                     pip install -r requirements.txt
                 """
@@ -33,7 +33,7 @@ pipeline {
                 stage('Build App') {
                     steps {
                         echo "Construction de l application"
-                        sh """
+                        bat """
                             python -m py_compile app/main.py tests/test_app.py
                         """
                     }
@@ -41,7 +41,7 @@ pipeline {
                 stage('Run Tests') {
                     steps {
                         echo "Execution des tests unitaires"
-                        sh """
+                        bat """
                             python -m unittest discover tests/ -v
                         """
                     }
@@ -52,10 +52,10 @@ pipeline {
         stage('Run Docker') {
             steps {
                 echo "Deploiement Docker"
-                sh """
-                    docker-compose down || true
+                bat """
+                    docker-compose down
                     docker-compose up -d --build
-                    sleep 15
+                    timeout /t 15 /nobreak
                 """
             }
         }
@@ -63,7 +63,7 @@ pipeline {
         stage('Smoke Test') {
             steps {
                 echo "Tests de validation"
-                sh """
+                bat """
                     docker-compose run --rm smoke-test
                 """
             }
@@ -82,7 +82,7 @@ pipeline {
     post {
         always {
             echo "Nettoyage"
-            sh 'docker-compose down || true'
+            bat 'docker-compose down'
         }
     }
 }
