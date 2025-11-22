@@ -7,13 +7,26 @@ pipeline {
             choices: ['3.9', '3.10', '3.11'],
             description: 'Python version to build with'
         )
+        string(
+            name: 'BRANCH_NAME',
+            defaultValue: 'dev',
+            description: 'Branch to build (use feature/branch-name for PR testing)'
+        )
     }
     
     stages {
         stage('Checkout') {
             steps {
                 echo "Checkout du code depuis GitHub"
-                git branch: '${CHANGE_BRANCH}', url: 'https://github.com/Hibaaguir/WEATHER-APP.git'
+                script {
+                    // Utiliser le paramètre BRANCH_NAME au lieu de CHANGE_BRANCH
+                    def branchToBuild = params.BRANCH_NAME
+                    if (env.CHANGE_BRANCH) {
+                        branchToBuild = env.CHANGE_BRANCH
+                    }
+                    echo "Building branch: ${branchToBuild}"
+                    git branch: branchToBuild, url: 'https://github.com/Hibaaguir/WEATHER-APP.git'
+                }
                 sh 'git log -1 --oneline'
             }
         }
